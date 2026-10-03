@@ -1,0 +1,111 @@
+STATIC ROUTING STEPS (Cisco IOS)
+================================
+
+Example topology:
+  PC1 (192.168.1.10) -- [R1] --10.0.0.0/30-- [R2] -- PC2 (192.168.2.10)
+
+  R1: G0/0 = 192.168.1.1/24 (LAN1), S0/0/0 = 10.0.0.1/30 (link to R2)
+  R2: G0/0 = 192.168.2.1/24 (LAN2), S0/0/0 = 10.0.0.2/30 (link to R1)
+
+
+STEP 1: Plan the network
+------------------------
+- List all networks and their subnet masks.
+- Note which networks each router is directly connected to.
+- Find the networks each router does NOT know about. These need static routes.
+
+
+STEP 2: Configure interface IP addresses
+----------------------------------------
+R1:
+  enable
+  configure terminal
+  interface g0/0
+   ip address 192.168.1.1 255.255.255.0
+   no shutdown
+  exit
+  interface s0/0/0
+   ip address 10.0.0.1 255.255.255.252
+   no shutdown
+  exit
+
+R2:
+  enable
+  configure terminal
+  interface g0/0
+   ip address 192.168.2.1 255.255.255.0
+   no shutdown
+  exit
+  interface s0/0/0
+   ip address 10.0.0.2 255.255.255.252
+   no shutdown
+  exit
+
+
+STEP 3: Verify directly connected networks
+------------------------------------------
+  show ip interface brief
+  show ip route
+
+Look for "C" (connected) and "L" (local) routes.
+
+
+STEP 4: Add static routes
+-------------------------
+Command format:
+  ip route <destination-network> <subnet-mask> <next-hop-IP | exit-interface>
+
+R1 (to reach LAN2):
+  ip route 192.168.2.0 255.255.255.0 10.0.0.2
+
+R2 (to reach LAN1):
+  ip route 192.168.1.0 255.255.255.0 10.0.0.1
+
+
+STEP 5 (optional): Add a default route
+--------------------------------------
+Use this on a stub router or to reach the internet.
+
+  ip route 0.0.0.0 0.0.0.0 <next-hop-IP>
+
+Example on R1:
+  ip route 0.0.0.0 0.0.0.0 10.0.0.2
+
+
+STEP 6: Set PC IP settings
+--------------------------
+PC1: IP 192.168.1.10, Mask 255.255.255.0, Gateway 192.168.1.1
+PC2: IP 192.168.2.10, Mask 255.255.255.0, Gateway 192.168.2.1
+
+
+STEP 7: Verify and test
+-----------------------
+  show ip route          (static routes show as "S")
+  show running-config | include ip route
+  ping 192.168.2.10      (from PC1)
+  traceroute 192.168.2.10
+
+Ping from router (with source):
+  ping 192.168.2.10 source g0/0
+
+
+STEP 8: Save the configuration
+------------------------------
+  copy running-config startup-config
+
+
+TROUBLESHOOTING
+---------------
+- Ping fails one way: check that BOTH routers have a route back.
+- Route missing in table: check the next-hop is reachable and the interface is up.
+- Wrong mask: confirm the network address matches the mask.
+- Interface down: use "no shutdown" and check cables.
+- Remove a wrong route: put "no" in front of the same command.
+    no ip route 192.168.2.0 255.255.255.0 10.0.0.2
+
+
+QUICK NOTES
+-----------
+- Static routes are manual. They do not adapt if a link fails.
+- Administrative distance of a static route is 1.
+- Best for small networks and stub networks.
